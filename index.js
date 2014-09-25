@@ -81,6 +81,9 @@ var trimReg = /^0+/;
 var ver = process.version.substring(1).split('.');
 var useTypedArray = ver[0] * 100000 + ver[1] * 1000 + ver[2] * 1 >= 11013
 
+var z32 = '00000000000000000000000000000000';
+var z64 = z32+z32;
+
 var arrayAdd = function(base, add) {
   var pos = 19, range = 20 - add.length;
   while (true) {
@@ -97,15 +100,36 @@ var arrayAdd = function(base, add) {
   }
 };
 
-module.exports = function(hex) {
-  var output = btmp = binary = '', i = pos = 0, negative = false
-    number = useTypedArray ? new Uint8Array(20) : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+module.exports = function(hex, low) {
+  var ls = hs = output = btmp = binary = '', i = pos = 0, negative = false
+    number = useTypedArray ?
+      new Uint8Array(20) : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-  hex = hex.substring(0, 16).toLowerCase();
+  // high and low
+  if (low !== undefined && low != null) {
+    binary = hex.toString(2) + z32.substr(0, 32-ls.length) + ls;
+  // hex string
+  } else if (typeof hex === 'string') {
+    hex = hex.toLowerCase();
+    // trim left 0x
+    hex.substring(0, 2) === '0x' && (hex = hex.substring(2));
+    hex = hex.substring(0, 16);
+    // to bin
+    for (; i < hex.length; i++) {
+      binary += hex2bin[hex[i]];
+    }
 
-  // to bin
-  for (i = 15; i >= 0; i--) {
-    binary = (hex[i] ? hex2bin[hex[i]] : '0000') + binary;
+  // number
+  } else if (typeof hex === 'number') {
+    binary = hex.toString(2);
+  // error
+  } else {
+    throw new Error('argument type errpr');
+  }
+  // left zero padding
+  if (binary.length < 64) {
+    binary = z64.substr(0, 64 - binary.length) + binary;
   }
 
   // negative flag
@@ -121,6 +145,7 @@ module.exports = function(hex) {
   }
 
   // check map & calc
+  pos = 0
   for (i = binary.length - 1; i >= 0; i--) {
     binary[i] === '1' && arrayAdd(number, map[pos])
     pos++;
@@ -134,9 +159,12 @@ module.exports = function(hex) {
   for (i = 0; i < number.length; i++) {
     btmp += number[i];
   }
+
   // trim left zeropad
   output = btmp.replace(trimReg, '');
 
   // add '-'
   return negative ? '-' + output : output;
+
 };
+
