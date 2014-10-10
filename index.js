@@ -1,9 +1,31 @@
 
+var z64 = '0000000000000000000000000000000000000000000000000000000000000000';
+
 var hex2bin = {
   '0': '0000', '1': '0001', '2': '0010', '3': '0011',
   '4': '0100', '5': '0101', '6': '0110', '7': '0111',
   '8': '1000', '9': '1001', 'a': '1010', 'b': '1011',
   'c': '1100', 'd': '1101', 'e': '1110', 'f': '1111'
+};
+var negHex2bin = {
+  '0': '1111', '1': '1110', '2': '1101', '3': '1100',
+  '4': '1011', '5': '1010', '6': '1001', '7': '1000',
+  '8': '0111', '9': '0110', 'a': '0101', 'b': '0100',
+  'c': '0011', 'd': '0010', 'e': '0001', 'f': '0000'
+};
+
+var bin2hex = {
+  '0000': '0', '0001': '1', '0010': '2', '0011': '3',
+  '0100': '4', '0101': '5', '0110': '6', '0111': '7',
+  '1000': '8', '1001': '9', '1010': 'a', '1011': 'b',
+  '1100': 'c', '1101': 'd', '1110': 'e', '1111': 'f'
+};
+
+var negBin2hex = {
+  '1111': '0', '1110': '1', '1101': '2', '1100': '3',
+  '1011': '4', '1010': '5', '1001': '6', '1000': '7',
+  '0111': '8', '0110': '9', '0101': 'a', '0100': 'b',
+  '0011': 'c', '0010': 'd', '0001': 'e', '0000': 'f'
 };
 
 var map = [
@@ -71,9 +93,19 @@ var map = [
   [2, 3, 0, 5, 8, 4, 3, 0, 0, 9, 2, 1, 3, 6, 9, 3, 9, 5, 2],
   [4, 6, 1, 1, 6, 8, 6, 0, 1, 8, 4, 2, 7, 3, 8, 7, 9, 0, 4],
   [9, 2, 2, 3, 3, 7, 2, 0, 3, 6, 8, 5, 4, 7, 7, 5, 8, 0, 8],
-  [1, 8, 4, 4, 6, 7, 4, 4, 0, 7, 3, 7, 0, 9, 5, 5, 1, 6, 1, 6],
-  [3, 6, 8, 9, 3, 4, 8, 8, 1, 4, 7, 4, 1, 9, 1, 0, 3, 2, 3, 2]
+  // [1, 8, 4, 4, 6, 7, 4, 4, 0, 7, 3, 7, 0, 9, 5, 5, 1, 6, 1, 6],
+  // [3, 6, 8, 9, 3, 4, 8, 8, 1, 4, 7, 4, 1, 9, 1, 0, 3, 2, 3, 2]
 ];
+
+var maxNumber = '9223372036854775808';
+var lenInfo = [ 0,
+3,  6,  9,
+13, 16, 19,
+23, 26, 29,
+33, 36, 39,
+43, 46, 49,
+53, 56, 59,
+63]
 
 var trimReg = /^0+/;
 
@@ -81,10 +113,7 @@ var trimReg = /^0+/;
 var ver = process.version.substring(1).split('.');
 var useTypedArray = ver[0] * 100000 + ver[1] * 1000 + ver[2] * 1 >= 11013
 
-var z32 = '00000000000000000000000000000000';
-var z64 = z32+z32;
-
-var arrayAdd = function(base, add) {
+var arrayPlus = function(base, add) {
   var pos = 19, range = 20 - add.length;
   while (true) {
     if (pos >= range) {
@@ -100,59 +129,48 @@ var arrayAdd = function(base, add) {
   }
 };
 
-module.exports = function(hex, low) {
+var i2s = function(hex) {
+  if (parseInt(hex) === 0){
+    return '0';
+  }
   var ls = hs = output = btmp = binary = '', i = pos = 0, negative = false
     number = useTypedArray ?
       new Uint8Array(20) : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-  // high and low
-  if (low !== undefined && low != null) {
-    binary = hex.toString(2) + z32.substr(0, 32-ls.length) + ls;
-  // hex string
-  } else if (typeof hex === 'string') {
-    hex = hex.toLowerCase();
-    // trim left 0x
-    hex.substring(0, 2) === '0x' && (hex = hex.substring(2));
-    hex = hex.substring(0, 16);
-    // to bin
+  // check hex
+  hex = hex.toLowerCase()
+  if (hex.length > 16) {
+    throw new Error('Out of Range!');
+  }
+  // not full
+  if (hex.length < 16) {
     for (; i < hex.length; i++) {
       binary += hex2bin[hex[i]];
     }
-
-  // number
-  } else if (typeof hex === 'number') {
-    binary = hex.toString(2);
-  // error
+  // full
   } else {
-    throw new Error('argument type errpr');
+    // negative
+    var h2b = (negative = hex[0] > '7') ? negHex2bin : hex2bin
+    binary = h2b[hex[i]].substr(1);
+    for (i=1; i < hex.length; i++) {
+      binary += h2b[hex[i]];
+    }
   }
   // left zero padding
-  if (binary.length < 64) {
-    binary = z64.substr(0, 64 - binary.length) + binary;
-  }
-
-  // negative flag
-  negative = binary[0] === '1';
-  binary = binary.substring(1);
-
-  // negative flip
-  if (negative) {
-    for (i = 0; i < binary.length; i++) {
-      btmp += (binary[i] === '1' ? '0' : '1');
-    }
-    binary = btmp;
+  if (binary.length < 63) {
+    binary = z64.substr(0, 63 - binary.length) + binary;
   }
 
   // check map & calc
   pos = 0
   for (i = binary.length - 1; i >= 0; i--) {
-    binary[i] === '1' && arrayAdd(number, map[pos])
+    binary[i] === '1' && arrayPlus(number, map[pos])
     pos++;
   }
 
   // negative flip back
-  negative && arrayAdd(number, map[0]);
+  negative && arrayPlus(number, map[0]);
 
   // result tostring
   btmp = '';
@@ -167,4 +185,111 @@ module.exports = function(hex, low) {
   return negative ? '-' + output : output;
 
 };
+
+
+
+
+var arrayMinus = function(base, num) {
+  var lb = base.length, ln = num.length, n=0;
+  while (true) {
+    n = base[--lb];
+    if (--ln >= 0) {
+      n -= num[ln];
+    }
+    if (n < 0) {
+      base[lb-1]--;
+      n += 10
+    } else if (ln < 0) {
+      break;
+    }
+    base[lb] = n
+  }
+};
+
+var compare = function(a, b) {
+  var la = a.length, lb = b.length, fix = la - lb;
+  for (var i = 0; i < fix; i++) {
+    if (a[i] > 0) {
+      return true
+    }
+  }
+  for (; i < la; i++) {
+    if (a[i] > b[i-fix]) {
+      return true;
+    } else if (a[i] < b[i-fix]) {
+      return false;
+    }
+  }
+  return true
+}
+
+
+
+var s2i = function(str) {
+  var negative = false, i = pos = len = 0, mapv = now = ''
+    number = null,
+    binary = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0];
+  // trim spaceing
+  str = str.trim();
+  // if negative
+  if (str[0] === '-'){
+    negative = true
+    str = str.substring(1);
+  }
+
+  // check range
+  if (str.length > 19 || (str.length === 19 && str > maxNumber)){
+    throw new Error('Out of Range! ' + str);
+  }
+  // to array
+  len = str.length
+  number = new Array(len);
+  for (i = 0; i < len; i++) {
+    // number.push(str[i] * 1);
+    number[i] = parseInt(str[i])
+  }
+
+  // skip head
+  pos = lenInfo[len];
+
+  // -1 if negative
+  negative && arrayMinus(number, map[0]);
+
+  // main loop
+  while (pos >= 0) {
+    mapv = map[pos]
+    // if number >= map value, mark this bit to 1
+    if (compare(number, mapv)) {
+      binary[62-pos] = 1
+      // minus map value
+      arrayMinus(number, mapv);
+    }
+    pos--;
+  }
+  // get map of 4bits to hex
+  b2h = negative ? negBin2hex : bin2hex
+  // first byte
+  now = '0' + binary[0] + binary[1] + binary[2];
+  str = b2h[now];
+
+  // other bytes
+  for(i = 3; i < binary.length; i+=4) {
+    now = '' + binary[i] + binary[i+1] + binary[i+2] + binary[i+3];
+    str += b2h[now];
+  }
+
+  return str;
+}
+
+module.exports.hex2dec = module.exports.int64ToString = module.exports = i2s
+module.exports.dec2hex = module.exports.stringToInt64 = s2i
+
+
+
 

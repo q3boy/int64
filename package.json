@@ -1,10 +1,11 @@
 {
   "name": "int64",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "transform an int64 (8 bytes hexcode) to string",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test.js",
+    "benchmark": "coffee benchmark.coffee 100000"
   },
 
   "engines": "node: >=0.10.0",
