@@ -1,5 +1,6 @@
-i2s = require('./index.js');
-s2i = i2s.stringToInt64;
+int64 = require('./index');
+i2s = int64.hex2dec
+s2i = int64.dec2hex;
 
 var a = b = c = d = e = f = g = null;
 var test = [

@@ -130,9 +130,6 @@ var arrayPlus = function(base, add) {
 };
 
 var i2s = function(hex) {
-  if (parseInt(hex) === 0){
-    return '0';
-  }
   var ls = hs = output = btmp = binary = '', i = pos = 0, negative = false
     number = useTypedArray ?
       new Uint8Array(20) : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -181,6 +178,9 @@ var i2s = function(hex) {
   // trim left zeropad
   output = btmp.replace(trimReg, '');
 
+  if (output === '') {
+    return '0';
+  }
   // add '-'
   return negative ? '-' + output : output;
 
@@ -287,8 +287,11 @@ var s2i = function(str) {
   return str;
 }
 
-module.exports.hex2dec = module.exports.int64ToString = module.exports = i2s
-module.exports.dec2hex = module.exports.stringToInt64 = s2i
+module.exports = i2s
+module.exports.hex2dec = i2s
+module.exports.int64ToString = i2s
+module.exports.dec2hex = s2i
+module.exports.stringToInt64 = s2i
 
 
 
