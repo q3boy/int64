@@ -16,5 +16,5 @@ Transform int64 between hex and dec(signed).
     console.log(buf.toString('hex')); // prints faffffffff010203
     console.log(hex2dec(buf.toString('hex'))); // prints -360287970206350845
     // Decimal string back to 8-byte Buffer:
-    console.log(Buffer.from(dec2hex('-360287970206350845'), 'hex'))
+    console.log(Buffer.from(dec2hex('-360287970206350845'), 'hex')) // prints <Buffer fa ff ff ff ff 01 02 03>
 ```
